@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Perfect Pink | Smoked Prime Rib Simulator</title>
+  <style>
+    /* --- CSS STYLING --- */
+    :root {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --accent-gold: #c5a059;
+      --meat-raw: #ff6f69;
+      --meat-rare: #ff8b85;
+      /* Target Color */
+      --meat-medium: #b07d62;
+      --meat-burnt: #3d2b1f;
+      --smoke-good: #00b894;
+      /* Green for good smoke */
+      --smoke-bad: #e74c3c;
+      /* Red for low smoke */
+    }
+
+    body {
+      font-family: 'Georgia', serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    h1 {
+      color: var(--accent-gold);
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    p.subtitle {
+      font-family: sans-serif;
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    /* The Meat Visualizer */
+    .oven-window {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      border: 4px solid #333;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, var(--meat-raw) 20%, #8a3324 80%, #2a1a1a 100%);
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) inset, 0 0 20px rgba(0, 0, 0, 0.5);
+      margin-bottom: 2rem;
+      transition: transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Effect for low smoke */
+    .oven-window.cold {
+      opacity: 0.7;
+      box-shadow: 0 0 10px rgba(231, 76, 60, 0.5) inset;
+    }
+
+    /* The "Center" of the meat that changes color */
+    .meat-center {
+      width: 70%;
+      height: 70%;
+      background-color: var(--meat-raw);
+      border-radius: 50%;
+      filter: blur(20px);
+      transition: background-color 0.2s;
+    }
+
+    /* UI Elements */
+    .stats-container {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 1.2rem;
+    }
+
+    .temp-display,
+    .smoke-display {
+      font-weight: bold;
+      color: var(--accent-gold);
+    }
+
+    /* Smoke color logic */
+    .smoke-display.low {
+      color: var(--smoke-bad);
+    }
+
+    .smoke-display.optimal {
+      color: var(--smoke-good);
+    }
+
+    .status-display {
+      text-transform: uppercase;
+    }
+
+    /* Thermometer Bar */
+    .thermometer-container {
+      width: 300px;
+      height: 10px;
+      background: #333;
+      border-radius: 5px;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .thermometer-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3498db, #e74c3c);
+      transition: width 0.1s linear;
+    }
+
+    /* The "Target Zone" marker on the bar */
+    .target-zone {
+      position: absolute;
+      /* (120 - 40) / (180 - 40) = 57.14% */
+      left: 57.14%;
+      width: 3.5%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.5);
+      z-index: 2;
+      transform: translateX(-50%);
+      box-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+    }
+
+    /* Controls */
+    .controls-container {
+      display: flex;
+      gap: 15px;
+    }
+
+    button {
+      background-color: transparent;
+      border: 2px solid var(--accent-gold);
+      color: var(--accent-gold);
+      padding: 15px 25px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+      font-family: sans-serif;
+      border-radius: 4px;
+    }
+
+    button:hover {
+      background-color: var(--accent-gold);
+      color: var(--bg-color);
+      box-shadow: 0 0 15px var(--accent-gold);
+    }
+
+    .add-wood-btn {
+      border-color: #f1c40f;
+      color: #f1c40f;
+    }
+
+    .add-wood-btn:hover {
+      background-color: #f1c40f;
+      color: var(--bg-color);
+    }
+
+    button:disabled {
+      border-color: #555;
+      color: #555;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Feedback Overlay */
+    .feedback {
+      position: absolute;
+      top: 20%;
+      font-size: 3rem;
+      font-weight: bold;
+      text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+      text-align: center;
+    }
+
+    .feedback.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Chef's Notes (Footer) */
+    .chefs-notes {
+      margin-top: 30px;
+      font-size: 0.8rem;
+      color: #666;
+      max-width: 400px;
+      text-align: center;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>The Perfect Pink Smoke</h1>
+  <p class="subtitle">Maintain **SMOKE ABOVE 40%** while pulling the rib between 120°F and 125°F for the perfect bark.
+  </p>
+
+  <div class="oven-window" id="oven">
+    <div class="meat-center" id="meatCenter"></div>
+  </div>
+
+  <div class="feedback" id="feedbackText">PERFECT!</div>
+
+  <div class="stats-container">
+    <div>TEMP: <span class="temp-display" id="tempDisplay">40°F</span></div>
+    <div>SMOKE: <span class="smoke-display" id="smokeDisplay">0%</span></div>
+    <div class="status-display" id="statusDisplay">RAW</div>
+  </div>
+
+  <div class="thermometer-container">
+    <div class="target-zone" title="Target: 120F - 125F"></div>
+    <div class="thermometer-fill" id="thermometerFill"></div>
+  </div>
+
+  <div class="controls-container">
+    <button id="woodBtn" class="add-wood-btn" onclick="addWood()" disabled>Add Wood</button>
+    <button id="pullBtn" onclick="handleAction()">Start Oven</button>
+  </div>
+
+  <div class="chefs-notes">
+    Tip: The lower the smoke, the slower the temperature rises. If smoke drops too low, the heat will stall.
+  </div>
+
+  <script>
+    /* --- JAVASCRIPT LOGIC --- */
+
+    // Game Constants
+    const START_TEMP = 40;
+    const MAX_TEMP = 180;
+    const TARGET_MIN = 120; // Goal: Rare
+    const TARGET_MAX = 125;
+    const SMOKE_OPTIMAL_MIN = 40; // New smoke target
+    const SMOKE_CRITICAL_LOW = 10; // Smoke stall threshold
+
+    // State Variables
+    let currentTemp = START_TEMP;
+    let smokeLevel = 0;
+    let isCooking = false;
+    let gameEnded = false;
+    let intervalId = null;
+    let baseSpeed = 0.15; // Base speed
+    let woodCooldown = false; // Prevents spamming the wood button
+
+    // DOM Elements
+    const tempDisplay = document.getElementById('tempDisplay');
+    const smokeDisplay = document.getElementById('smokeDisplay');
+    const statusDisplay = document.getElementById('statusDisplay');
+    const meatCenter = document.getElementById('meatCenter');
+    const thermometerFill = document.getElementById('thermometerFill');
+    const pullBtn = document.getElementById('pullBtn');
+    const woodBtn = document.getElementById('woodBtn');
+    const feedbackText = document.getElementById('feedbackText');
+    const oven = document.getElementById('oven');
+
+
+    function updateVisuals() {
+      // Update Text
+      tempDisplay.innerText = Math.floor(currentTemp) + "°F";
+      smokeDisplay.innerText = Math.floor(smokeLevel) + "%";
+
+      // Smoke color logic
+      if (smokeLevel >= SMOKE_OPTIMAL_MIN) {
+        smokeDisplay.classList.add('optimal');
+        smokeDisplay.classList.remove('low');
+      } else if (smokeLevel < SMOKE_OPTIMAL_MIN && smokeLevel > SMOKE_CRITICAL_LOW) {
+        smokeDisplay.classList.remove('optimal');
+        smokeDisplay.classList.remove('low');
+      } else {
+        smokeDisplay.classList.add('low');
+        smokeDisplay.classList.remove('optimal');
+      }
+
+      // Oven visual for critical low smoke
+      if (smokeLevel < SMOKE_CRITICAL_LOW) {
+        oven.classList.add('cold');
+      } else {
+        oven.classList.remove('cold');
+      }
+
+      // Update Bar Width
+      const percentage = ((currentTemp - START_TEMP) / (MAX_TEMP - START_TEMP)) * 100;
+      thermometerFill.style.width = Math.min(percentage, 100) + "%";
+
+      // Update Meat Color & Status Text based on Ranges
+      if (currentTemp < TARGET_MIN) {
+        meatCenter.style.backgroundColor = "#ff6f69"; // Raw Red
+        statusDisplay.innerText = "RAW";
+        statusDisplay.style.color = "#ff6f69";
+      } else if (currentTemp >= TARGET_MIN && currentTemp <= TARGET_MAX) {
+        meatCenter.style.backgroundColor = "#ff8b85"; // Rare / Perfect
+        statusDisplay.innerText = "PERFECT";
+        statusDisplay.style.color = "#e0e0e0";
+      } else if (currentTemp < 135) {
+        meatCenter.style.backgroundColor = "#ffcccb"; // Medium-Rare
+        statusDisplay.innerText = "MED-RARE";
+        statusDisplay.style.color = "#ffcccb";
+      } else if (currentTemp < 145) {
+        meatCenter.style.backgroundColor = "#b07d62"; // Medium
+        statusDisplay.innerText = "MEDIUM";
+        statusDisplay.style.color = "#b07d62";
+      } else {
+        meatCenter.style.backgroundColor = "#3d2b1f"; // Overcooked/Burnt
+        statusDisplay.innerText = "RUINED";
+        statusDisplay.style.color = "#555";
+      }
+    }
+
+    function handleAction() {
+      if (!isCooking && !gameEnded) {
+        startGame();
+      } else if (isCooking) {
+        stopGame();
+      } else if (gameEnded) {
+        resetGame();
+      }
+    }
+
+    function addWood() {
+      if (!isCooking || woodCooldown) return;
+
+      // Increase smoke and apply cooldown
+      smokeLevel = Math.min(100, smokeLevel + 30); // Boost smoke by 30%
+      woodCooldown = true;
+      woodBtn.disabled = true;
+      woodBtn.innerText = "COOLDOWN...";
+
+      // Start cooldown timer (e.g., 2 seconds)
+      setTimeout(() => {
+        woodCooldown = false;
+        if (isCooking) {
+          woodBtn.disabled = false;
+          woodBtn.innerText = "Add Wood";
+        }
+      }, 2000);
+
+      updateVisuals();
+    }
+
+    function startGame() {
+      isCooking = true;
+      pullBtn.innerText = "PULL ROAST!";
+      pullBtn.style.borderColor = "#ff6f69";
+      pullBtn.style.color = "#ff6f69";
+      woodBtn.disabled = false;
+
+      feedbackText.classList.remove('show');
+
+      // The Cooking Loop
+      intervalId = setInterval(() => {
+        // 1. Temperature Physics (Acceleration)
+        let tempAcceleration = 1;
+        if (currentTemp > 100) tempAcceleration = 1.5;
+        if (currentTemp > 115) tempAcceleration = 2.5;
+
+        // SMOKE STALL PENALTY: Reduce temp acceleration if smoke is too low
+        if (smokeLevel < SMOKE_CRITICAL_LOW) {
+          tempAcceleration *= 0.1; // Slows down to 10% speed
+          currentTemp = Math.max(START_TEMP, currentTemp - 0.2); // slight heat drop
+        }
+
+        currentTemp += (baseSpeed * tempAcceleration);
+
+        // 2. Smoke Physics (Decay)
+        smokeLevel = Math.max(0, smokeLevel - 0.5); // Smoke decays slowly
+
+        updateVisuals();
+
+        // Auto-fail if burnt
+        if (currentTemp >= MAX_TEMP) {
+          stopGame();
+        }
+      }, 50); // Updates every 50ms
+    }
+
+    function stopGame() {
+      isCooking = false;
+      gameEnded = true;
+      clearInterval(intervalId);
+      woodBtn.disabled = true;
+
+      const finalTemp = Math.floor(currentTemp);
+      let resultText = "";
+      let resultColor = "";
+      let finalRating = 0; // 1 = perfect, 0 = bad
+
+      // 1. Determine Temperature Result
+      if (finalTemp >= TARGET_MIN && finalTemp <= TARGET_MAX) {
+        resultText = "PERFECT TEMP!";
+        resultColor = "#4cd137";
+        finalRating = 1;
+      } else if (finalTemp < TARGET_MIN) {
+        resultText = "IT'S RAW!";
+        resultColor = "#e74c3c";
+        shakeOven();
+      } else {
+        resultText = "OVERCOOKED!";
+        resultColor = "#f1c40f";
+        shakeOven();
+      }
+
+      // 2. Apply Smoke/Bark Quality Check
+      if (finalRating === 1) {
+        if (smokeLevel >= SMOKE_OPTIMAL_MIN) {
+          resultText += "\n(Perfect Bark!)";
+          resultColor = "#00b894"; // Optimal result color
+          meatCenter.style.boxShadow = "0 0 50px #ff8b85"; // Glow
+        } else {
+          resultText += "\n(No Smoke = No Bark)";
+          resultColor = "#f1c40f"; // Downgraded to yellow if temp was perfect but smoke failed
+        }
+      } else {
+        // If temp failed, smoke doesn't save it, but we mention the failure
+        if (smokeLevel < SMOKE_OPTIMAL_MIN) {
+          resultText += "\n(Smoke Died Out)";
+        }
+      }
+
+      // Final Feedback
+      triggerFeedback(resultText, resultColor);
+
+      // Update Buttons for Restart
+      pullBtn.innerText = "ROAST ANOTHER";
+      pullBtn.style.borderColor = "var(--accent-gold)";
+      pullBtn.style.color = "var(--accent-gold)";
+      woodBtn.innerText = "Add Wood"; // Reset wood button text
+    }
+
+    function resetGame() {
+      currentTemp = START_TEMP;
+      smokeLevel = 0;
+      gameEnded = false;
+      woodCooldown = false;
+      feedbackText.classList.remove('show');
+      meatCenter.style.boxShadow = "none";
+      updateVisuals();
+      startGame();
+    }
+
+    function triggerFeedback(text, color) {
+      // Replaces \n with <br> for multi-line feedback
+      feedbackText.innerHTML = text.replace('\n', '<br>');
+      feedbackText.style.color = color;
+      feedbackText.classList.add('show');
+    }
+
+    function shakeOven() {
+      oven.style.transform = "translateX(10px)";
+      setTimeout(() => { oven.style.transform = "translateX(-10px)"; }, 50);
+      setTimeout(() => { oven.style.transform = "translateX(5px)"; }, 100);
+      setTimeout(() => { oven.style.transform = "translateX(0px)"; }, 150);
+    }
+
+    // Initialize
+    updateVisuals();
+
+  </script>
+</body>
+
+</html>
